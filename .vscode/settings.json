@@ -5,5 +5,9 @@
     },
     "files.associations": {
         "memory": "cpp"
+    },
+    "terminal.integrated.env.osx": {
+        "PATH": "/Users/nanne/.platformio/penv/bin:/Users/nanne/.platformio/penv:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/Applications/adt/sdk/tools:/Applications/adt/sdk/platform-tools:/usr/local/git/bin",
+        "PLATFORMIO_CALLER": "vscode"
     }
 }

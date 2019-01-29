@@ -22,17 +22,14 @@ TODO
 const uint16_t PixelCount = 12; // aantal leds
 const uint8_t PixelPin = 2;  // op de Esp8266 altijd de RX pin
 
-#define colorSaturation 64 // leds niet maximaal helder ivm stroomverbruik en fel aan de oogjes
+#define colorSaturation 32 // leds niet maximaal helder ivm stroomverbruik en fel aan de oogjes
 
 // geef dit een unieke naam als je je device wilt kunnen herkennen!
-const char* SSID = "Pretty fly for a wifi";
+const char* SSID = "ledring AP";
 // stel hier de coordinaten van je crib in! (2 decimalen achter de komma)
-//Wolddijk
-// const String LAT = "53.25";
-// const String LON = "6.57";
-//Enshore HQ
-const String LAT = "53.19";
-const String LON = "6.56";
+// reitdiephaven
+const String LAT = "53.24";
+const String LON = "6.52";
 
 // er zijn verschillende constructors voor verschillende varianten leds, met name de volgorde van de kleuren (ook de datapin hangt hiervan af)
 NeoPixelBus<NeoGrbFeature, Neo800KbpsMethod> ring(PixelCount, PixelPin); // GRB!
@@ -50,7 +47,7 @@ RgbColor white(colorSaturation);
 RgbColor black(0);
 
 // kleur als het niet regent
-RgbColor allclear = green;
+RgbColor allclear = black;
 
 // wanneer staat 'ie aan
 const int poweron = 7; //aan om 7u
@@ -71,8 +68,7 @@ void setup_wifi() {
   // maak een access point om je wifi netwerk in te kunnen stellen
   WiFiManager wifiManager;
   wifiManager.autoConnect(SSID); 
-  
-//   Serial.println(WiFi.localIP());
+  Serial.println(WiFi.localIP());
 }
 
 
@@ -80,7 +76,7 @@ void setup_wifi() {
 void setup() {
   
   // Initialize the LED_BUILTIN pin as an output
-  pinMode(LED_BUILTIN, OUTPUT);     
+  pinMode(LED_BUILTIN, OUTPUT);   
 
   // seriele poort openzetten voor debug data (zorg dat je terminal dezelfde baudrate gebruikt)
   Serial.begin(115200);
@@ -131,8 +127,8 @@ void error(RgbColor color) {
   //  paint(black);
 
   // 3: informatieve maar irritante kleurtjes
-  paint(color);
-  delay(3000);
+  // paint(color);
+  // delay(3000);
 }
 
 // de timestamps van buienradar terugrekenen naar seconden sinds middernacht
