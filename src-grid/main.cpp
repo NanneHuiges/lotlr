@@ -85,9 +85,10 @@ const uint16_t bottom = PanelHeight - 1;
     }
 
 const int numPatterns = 2;
-byte patterns[numPatterns][16][16] = {N,H};
+byte patterns[numPatterns][PanelHeight][PanelWidth] = {N,H};
 
-int pattern = 0;
+byte leds[PanelHeight][PanelWidth];
+
 
 
 /**
@@ -117,19 +118,37 @@ void setup()
     digitalWrite(LED_BUILTIN, HIGH);
 }
 
-void setPattern(int pattern)
+void show()
 {
     for (int x = 0; x < PanelWidth; x++)
     {
         for (int y = 0; y < PanelHeight; y++)
         {
-            if(patterns[pattern][y][x] == 1){
+            if(leds[y][x] == 1){
                 strip.SetPixelColor(topo.Map(x, y), blue);
             }else{
                 strip.SetPixelColor(topo.Map(x, y), black);
             }
         }
     }
+    strip.Show();
+}
+
+void slidePattern(int pattern, int del) {
+  for (int l = 0; l < PanelWidth; l++) {
+    // slide all except the last row  
+    for (int x = 0; x < PanelWidth - 1 ; x++) {
+      for (int y = 0; y < PanelHeight; y++) {
+        leds[y][x] = leds[y][x+1];
+      }
+    }
+
+    for (int j = 0; j < PanelHeight; j++) {
+      leds[j][PanelWidth - 1] = patterns[pattern][j][0 + l];
+    }
+    show();
+    delay(del);
+  }
 }
 
 /**
@@ -139,14 +158,7 @@ void loop()
 {
     strip.ClearTo(black);
     strip.Show();
-    setPattern(0);
-    strip.Show();
-    delay(2500);
-
-    strip.ClearTo(black);
-    strip.Show();
-    setPattern(1);
-    strip.Show();
+    slidePattern(0, 200);
     delay(2500);
 
     // strip.ClearTo(black);
