@@ -9,25 +9,34 @@
  *    RX -> DI (other. data)
  * 
  ************************************************************/
+// Inbuild AP with webserver @ 192.168.4.1 if no network is found.
 #include <WiFiManager.h>
 // ws2812b ledstrip/ring
 #include <NeoPixelBus.h>
 #include <NeoPixelAnimator.h>
+// this includes some form of time.h it seems
+#include <NtpClientLib.h>
+// the 437 character definitions.
 #include "matrix_font.h"
 
 // 'brightness' of the led. 0 - 255 (?)
 #define colorSaturation 32
 
-typedef ColumnMajorAlternatingLayout MyPanelLayout;
+const char* SSID = "ledgrid clock";
 
+// set the matrix 
+typedef ColumnMajorAlternatingLayout MyPanelLayout;
 const uint8_t PanelWidth = 16; // 8 pixel x 8 pixel matrix of leds
 const uint8_t PanelHeight = 16;
 const uint16_t PixelCount = PanelWidth * PanelHeight;
 const uint8_t PixelPin = 2; // make sure to set this to the correct pin, ignored for Esp8266
-
 NeoTopology<MyPanelLayout> topo(PanelWidth, PanelHeight);
-
 NeoPixelBus<NeoGrbFeature, Neo800KbpsMethod> strip(PixelCount, PixelPin);
+// use these to addres the 4 quadrants
+const int lefttop = 0b00;
+const int leftbot = 0b10;
+const int righttop = 0b01;
+const int rightbot = 0b11;
 
 // Define some colors for easy use later on
 RgbColor red(colorSaturation, 0, 0);
@@ -36,21 +45,20 @@ RgbColor yellow(colorSaturation, colorSaturation, 0);
 RgbColor orange(colorSaturation, colorSaturation / 2, 0);
 RgbColor purple(colorSaturation / 8, 0, colorSaturation);
 RgbColor green(0, colorSaturation, 0);
+RgbColor lgreen(colorSaturation/4, colorSaturation/2, 0);
 RgbColor blue(0, 0, colorSaturation);
 RgbColor white(colorSaturation);
 RgbColor black(0);
 
-const int lefttop = 0b00;
-const int leftbot = 0b10;
-const int righttop = 0b01;
-const int rightbot = 0b11;
+// the 'current' leds to write to the matrix
+RgbColor leds[PanelHeight][PanelWidth] = {green};
 
-const uint16_t left = 0;
-const uint16_t right = PanelWidth - 1;
-const uint16_t top = 0;
-const uint16_t bottom = PanelHeight - 1;
-const int numPatterns = 2;
-byte leds[PanelHeight][PanelWidth];
+void setup_wifi() {
+  // maak een access point om je wifi netwerk in te kunnen stellen
+  WiFiManager wifiManager;
+  wifiManager.autoConnect(SSID); 
+  Serial.println(WiFi.localIP());
+}
 
 /**
  * Arduino convention: setup() gets called once
@@ -58,7 +66,6 @@ byte leds[PanelHeight][PanelWidth];
  */
 void setup()
 {
-
     // Initialize the BUILTIN_LED pin as an output, turn it on during setup
     pinMode(LED_BUILTIN, OUTPUT);
     digitalWrite(LED_BUILTIN, LOW);
@@ -69,16 +76,16 @@ void setup()
 
     Serial.println();
     Serial.println("Initializing...");
-
+    setup_wifi(); 
     strip.Begin();
     strip.Show();
-
+    NTP.begin("pool.ntp.org", 1, true, 0);
+    NTP.setInterval(10, 3600);
+    NTP.getTime();
     strip.ClearTo(black);
     strip.Show();
-
     Serial.println();
     Serial.println("Running...");
-
     digitalWrite(LED_BUILTIN, HIGH);
 }
 
@@ -88,78 +95,74 @@ void show()
     {
         for (int y = 0; y < PanelHeight; y++)
         {
-            if(leds[y][x] == 1){
-                strip.SetPixelColor(topo.Map(x, y), blue);
-            }else{
-                strip.SetPixelColor(topo.Map(x, y), black);
-            }
+            strip.SetPixelColor(topo.Map(x, y), leds[y][x]);
         }
     }
     strip.Show();
 }
 
-// void slidePattern(int pattern, int del) {
-//   for (int l = 0; l < PanelWidth; l++) {
-//     // slide all except the last row  
-//     for (int x = 0; x < PanelWidth - 1 ; x++) {
-//       for (int y = 0; y < PanelHeight; y++) {
-//         leds[y][x] = leds[y][x+1];
-//       }
-//     }
-
-//     for (int j = 0; j < PanelHeight; j++) {
-//       leds[j][PanelWidth - 1] = patterns[pattern][j][0 + l];
-//     }
-//     show();
-//     delay(del);
-//   }
-// }
-
-void show_character(unsigned char letter, int quadrant)
+void set_character(unsigned char letter, RgbColor color, int quadrant)
 {
     bool quadrant_x = ((quadrant >> 0) & 0x01);
     bool quadrant_y = ((quadrant >> 1) & 0x01);
-    for (byte x = 0; x < 8; x++) {
+    for (byte x = 0; x < 8; x++)
+    {
         byte row_byte = matrix_font[letter][x];
-        for (byte y =0; y < 8; y++ ) {
+        for (byte y = 0; y < 8; y++)
+        {
             bool led = ((row_byte >> y) & 0x01);
-            leds[y + (8 * quadrant_y)][x + (8 * quadrant_x)] = led;
+            if(led == 1){
+                leds[y + (8 * quadrant_y)][x + (8 * quadrant_x)] = color;
+            }else{
+                leds[y + (8 * quadrant_y)][x + (8 * quadrant_x)] = black;
+            }
         }
     }
-    show();
 }
 
-int letter = 0;
-int quadrant = 0;
+void set_sec(int sec, RgbColor color)
+{
+    for (int y = 0; y < sec % 10; y++){
+        leds[y][PanelWidth - 1] = color;
+    }
+    for (int y = 0; y < sec/10; y++){
+        leds[y][PanelWidth - 2] = color;
+    }
+}
 
 /**
  * Arduino convention: the loop gets called in a loop.
  */
 void loop()
 {
-    letter = letter % 100;
-    quadrant = quadrant % 4;
-    show_character(letter, lefttop);
-    letter++;
-    quadrant++;
+    if(WiFi.status()== WL_CONNECTED){
+        time_t t = now();
+
+        int h = (t / 3600) % 24;
+        char strh1[2];
+        sprintf(strh1, "%d", h / 10);
+        char strh2[2];
+        sprintf(strh2, "%d", h % 10);
+
+        int m = (t / 60) % 60;
+        char strm1[2];
+        sprintf(strm1, "%d", m / 10);
+        char strm2[2];
+        sprintf(strm2, "%d", m % 10);
+
+        int s = t % 60;
+
+        set_character(strh1[0], blue,  lefttop);
+        set_character(strh2[0], blue,  righttop);
+        set_character(strm1[0], purple,  leftbot);
+        set_character(strm2[0], purple,  rightbot);
+
+        set_sec(s, lgreen);
+
+        show();
+
+    } else {
+        Serial.println("No wifi");
+    }
     delay(1000);
-
-    // strip.ClearTo(black);
-    // strip.Show();
-
-    // for (int x = 0; x < PanelWidth; x++)
-    // {
-    //     for (int y = 0; y < PanelHeight; y++)
-    //     {
-    //         Serial.print(x);
-    //         Serial.print(',');
-    //         Serial.print(y);
-    //         Serial.println();
-    //         strip.SetPixelColor(topo.Map(x, y), red);
-    //         strip.Show();
-    //         delay(100);
-    //     }
-    // }   
-    // delay(2500);
- 
 }
