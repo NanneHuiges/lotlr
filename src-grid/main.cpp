@@ -13,6 +13,7 @@
 // ws2812b ledstrip/ring
 #include <NeoPixelBus.h>
 #include <NeoPixelAnimator.h>
+#include "matrix_font.h"
 
 // 'brightness' of the led. 0 - 255 (?)
 #define colorSaturation 32
@@ -39,57 +40,17 @@ RgbColor blue(0, 0, colorSaturation);
 RgbColor white(colorSaturation);
 RgbColor black(0);
 
+const int lefttop = 0b00;
+const int leftbot = 0b10;
+const int righttop = 0b01;
+const int rightbot = 0b11;
+
 const uint16_t left = 0;
 const uint16_t right = PanelWidth - 1;
 const uint16_t top = 0;
 const uint16_t bottom = PanelHeight - 1;
-
-#define H                         \
-    {                             \
-        {0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0 ,0 ,0 ,0 ,0}, \
-        {0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0 ,0 ,0 ,0 ,0}, \
-        {0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0 ,0 ,0 ,0 ,0}, \
-        {0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0 ,0 ,0 ,0 ,0}, \
-        {0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0 ,0 ,0 ,0 ,0}, \
-        {0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0 ,0 ,0 ,0 ,0}, \
-        {0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0 ,0 ,0 ,0 ,0}, \
-        {0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0 ,0 ,0 ,0 ,0},  \
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0 ,0 ,0 ,0},  \
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0 ,0 ,0 ,0},  \
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0 ,0 ,0 ,0},  \
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0 ,0 ,0 ,0},  \
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0 ,0 ,0 ,0},  \
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0 ,0 ,0 ,0},  \
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0 ,0 ,0 ,0},  \
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0 ,0 ,0 ,0}  \
-    }
-
-#define N \
-    { \
-        {0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0 ,0 ,0 ,0 ,0}, \
-        {0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0 ,0 ,0 ,0 ,0}, \
-        {0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0 ,0 ,0 ,0 ,0}, \
-        {0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0 ,0 ,0 ,0 ,0}, \
-        {0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0 ,0 ,0 ,0 ,0}, \
-        {0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0 ,0 ,0 ,0 ,0}, \
-        {0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0 ,0 ,0 ,0 ,0}, \
-        {0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0 ,0 ,0 ,0 ,0},  \
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0 ,0 ,0 ,0},  \
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0 ,0 ,0 ,0},  \
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0 ,0 ,0 ,0},  \
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0 ,0 ,0 ,0},  \
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0 ,0 ,0 ,0},  \
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0 ,0 ,0 ,0},  \
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0 ,0 ,0 ,0},  \
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0 ,0 ,0 ,0}  \
-    }
-
 const int numPatterns = 2;
-byte patterns[numPatterns][PanelHeight][PanelWidth] = {N,H};
-
 byte leds[PanelHeight][PanelWidth];
-
-
 
 /**
  * Arduino convention: setup() gets called once
@@ -110,6 +71,9 @@ void setup()
     Serial.println("Initializing...");
 
     strip.Begin();
+    strip.Show();
+
+    strip.ClearTo(black);
     strip.Show();
 
     Serial.println();
@@ -134,32 +98,51 @@ void show()
     strip.Show();
 }
 
-void slidePattern(int pattern, int del) {
-  for (int l = 0; l < PanelWidth; l++) {
-    // slide all except the last row  
-    for (int x = 0; x < PanelWidth - 1 ; x++) {
-      for (int y = 0; y < PanelHeight; y++) {
-        leds[y][x] = leds[y][x+1];
-      }
-    }
+// void slidePattern(int pattern, int del) {
+//   for (int l = 0; l < PanelWidth; l++) {
+//     // slide all except the last row  
+//     for (int x = 0; x < PanelWidth - 1 ; x++) {
+//       for (int y = 0; y < PanelHeight; y++) {
+//         leds[y][x] = leds[y][x+1];
+//       }
+//     }
 
-    for (int j = 0; j < PanelHeight; j++) {
-      leds[j][PanelWidth - 1] = patterns[pattern][j][0 + l];
+//     for (int j = 0; j < PanelHeight; j++) {
+//       leds[j][PanelWidth - 1] = patterns[pattern][j][0 + l];
+//     }
+//     show();
+//     delay(del);
+//   }
+// }
+
+void show_character(unsigned char letter, int quadrant)
+{
+    bool quadrant_x = ((quadrant >> 0) & 0x01);
+    bool quadrant_y = ((quadrant >> 1) & 0x01);
+    for (byte x = 0; x < 8; x++) {
+        byte row_byte = matrix_font[letter][x];
+        for (byte y =0; y < 8; y++ ) {
+            bool led = ((row_byte >> y) & 0x01);
+            leds[y + (8 * quadrant_y)][x + (8 * quadrant_x)] = led;
+        }
     }
     show();
-    delay(del);
-  }
 }
+
+int letter = 0;
+int quadrant = 0;
 
 /**
  * Arduino convention: the loop gets called in a loop.
  */
 void loop()
 {
-    strip.ClearTo(black);
-    strip.Show();
-    slidePattern(0, 200);
-    delay(2500);
+    letter = letter % 100;
+    quadrant = quadrant % 4;
+    show_character(letter, lefttop);
+    letter++;
+    quadrant++;
+    delay(1000);
 
     // strip.ClearTo(black);
     // strip.Show();
