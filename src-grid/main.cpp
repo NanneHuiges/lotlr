@@ -21,7 +21,11 @@
 #include <ArduinoJson.h>
 
 // the 437 character definitions.
-#include "matrix_font.h"
+#include "font_8x8.h"
+#include "font_4x7.h"
+
+// todo: include this?
+
 
 // 'brightness' of the led. 0 - 255 (?)
 #define colorSaturation 32
@@ -36,11 +40,22 @@ const uint16_t PixelCount = PanelWidth * PanelHeight;
 const uint8_t PixelPin = 2; // make sure to set this to the correct pin, ignored for Esp8266
 NeoTopology<MyPanelLayout> topo(PanelWidth, PanelHeight);
 NeoPixelBus<NeoGrbFeature, Neo800KbpsMethod> strip(PixelCount, PixelPin);
-// use these to addres the 4 quadrants
+// 4 quadrants
 const int lefttop = 0b00;
 const int leftbot = 0b10;
 const int righttop = 0b01;
 const int rightbot = 0b11;
+
+// 8 octants, from lefttop clockwise
+const int oct1 = 0x00;
+const int oct2 = 0x01;
+const int oct3 = 0x02;
+const int oct4 = 0x03;
+const int oct5 = 0x10;
+const int oct6 = 0x12;
+const int oct7 = 0x13;
+const int oct8 = 0x14;
+
 
 // Define some colors for easy use later on
 RgbColor red(colorSaturation, 0, 0);
@@ -106,13 +121,13 @@ void show()
     strip.Show();
 }
 
-void set_character(unsigned char letter, RgbColor color, int quadrant)
+void set_character_8x8(unsigned char letter, RgbColor color, int quadrant)
 {
     bool quadrant_x = ((quadrant >> 0) & 0x01);
     bool quadrant_y = ((quadrant >> 1) & 0x01);
     for (byte x = 0; x < 8; x++)
     {
-        byte row_byte = matrix_font[letter][x];
+        byte row_byte = font_8x8[letter][x];
         for (byte y = 0; y < 8; y++)
         {
             bool led = ((row_byte >> y) & 0x01);
@@ -123,6 +138,28 @@ void set_character(unsigned char letter, RgbColor color, int quadrant)
             else
             {
                 leds[y + (8 * quadrant_y)][x + (8 * quadrant_x)] = black;
+            }
+        }
+    }
+}
+
+void set_character_4x7(unsigned char letter, RgbColor color, int octant)
+{
+    int octant_x = ((octant >> 0) & 0x01);
+    int octant_y = ((octant >> 1) & 0x01);
+    for (byte x = 0; x < 4; x++)
+    {
+        byte row_byte = font_4x7[letter][x];
+        for (byte y = 0; y < 7; y++)
+        {
+            bool led = ((row_byte >> y) & 0x01);
+            if (led == 1)
+            {
+                leds[y + (8 * octant_y)][x + (4 * octant_x)] = color;
+            }
+            else
+            {
+                leds[y + (8 * octant_y)][x + (4 * octant_x)] = black;
             }
         }
     }
@@ -188,10 +225,10 @@ void loop()
         char strm2[2];
         sprintf(strm2, "%d", m % 10);
 
-        set_character(strh1[0], blue, lefttop);
-        set_character(strh2[0], blue, righttop);
-        set_character(strm1[0], purple, leftbot);
-        set_character(strm2[0], purple, rightbot);
+        set_character_8x8(strh1[0], blue, lefttop);
+        set_character_8x8(strh2[0], blue, righttop);
+        set_character_8x8(strm1[0], purple, leftbot);
+        set_character_8x8(strm2[0], purple, rightbot);
 
         // int s = t % 60;
         // set_sec(s, lgreen);
