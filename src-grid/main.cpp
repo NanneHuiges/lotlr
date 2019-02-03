@@ -148,15 +148,6 @@ void set_character_4x7(unsigned char letter, RgbColor color, int octant)
     int octant_y = octant / 10;
     char str[1];
 
-    Serial.print("...: ");
-    Serial.println(letter);
-    sprintf(str, "%d", octant_x);
-    Serial.print("x:");
-    Serial.println(str);
-    sprintf(str, "%d", octant_y);
-    Serial.print("y:");
-    Serial.println(str);
-
     for (byte row = 0; row < 6; row++)
     {
         byte row_byte = font_4x6[letter][row]; // each row is a hex number in the font
@@ -168,12 +159,9 @@ void set_character_4x7(unsigned char letter, RgbColor color, int octant)
             int y = row + (8 * octant_y);
             int x = (3-col) + (4 * octant_x); // This is magic. hackish
 
-            if (led == 1)
-            {
+            if (led == 1){
                 leds[y][x] = color;
-            }
-            else
-            {
+            } else {
                 leds[y][x] = black;
             }
         }
