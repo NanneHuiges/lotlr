@@ -52,9 +52,9 @@ const int oct2 = 1;
 const int oct3 = 2;
 const int oct4 = 3;
 const int oct5 = 10;
-const int oct6 = 12;
-const int oct7 = 13;
-const int oct8 = 14;
+const int oct6 = 11;
+const int oct7 = 12;
+const int oct8 = 13;
 
 // Define some colors for easy use later on
 RgbColor red(colorSaturation, 0, 0);
@@ -146,7 +146,6 @@ void set_character_4x7(unsigned char letter, RgbColor color, int octant)
 {
     int octant_x = octant % 10;
     int octant_y = octant / 10;
-    char str[1];
 
     for (byte row = 0; row < 6; row++)
     {
@@ -178,6 +177,45 @@ void set_sec(int sec, RgbColor color)
     {
         leds[y][PanelWidth - 2] = color;
     }
+}
+
+void set_temperature(RgbColor color)
+{
+    if (WiFi.status() == WL_CONNECTED)
+    {
+        HTTPClient http;
+        String url = "http://192.168.178.2:8084/json.htm?type=devices&rid=74";
+        http.begin(url);
+        int httpCode = http.GET();
+        if (httpCode == 200)
+        {
+            String payload = http.getString();
+            DynamicJsonBuffer jsonBuffer;
+            JsonObject &root = jsonBuffer.parseObject(payload);
+            // Unfortunately, the following doesn't work (issue #118):
+            // sensor = root["sensor"]; // <-  error "ambiguous overload for 'operator='"
+            // As a workaround, you need to replace by
+            String data = root["result"][0]["Data"].as<String>();
+            Serial.println(data);
+            data = data.substring(0,data.length()-4);
+            Serial.println(data);
+            // right. too drunk to figure out wstring padding
+            // so this'll work:
+            // print 3-length spaces, then length chars, then the celcius sign)
+            for(int i=0; i<3-data.length();i++){
+                set_character_4x7(' ', black, oct5+i);
+            }
+            for(int i=3-data.length(); i<3; i++){
+                set_character_4x7(data[i-(3-data.length())], color, oct5+i);
+            }
+            set_character_4x7(char(248), color, oct8);
+            return;           
+        }
+        Serial.println("no status 200 from domoticz");
+        return;
+    }
+    Serial.println("no wifi connected");
+    return;
 }
 
 bool should_display()
@@ -232,13 +270,22 @@ void loop()
         // set_character_8x8(strm1[0], purple, leftbot);
         // set_character_8x8(strm2[0], purple, rightbot);
 
-        set_character_4x7(strh1[0], red, oct1);
-        set_character_4x7(strh2[0], green, oct2);
-        set_character_4x7(strm1[0], blue, oct3);
-        set_character_4x7(strm2[0], white, oct4);
+        set_character_4x7(strh1[0], purple, oct1);
+        set_character_4x7(strh2[0], purple, oct2);
+        set_character_4x7(strm1[0], purple, oct3);
+        set_character_4x7(strm2[0], purple, oct4);
 
-        // int s = t % 60;
+        int s = t % 60;
+        char strs1[2];
+        sprintf(strs1, "%d", s / 10);
+        char strs2[2];
+        sprintf(strs2, "%d", s % 10);
         // set_sec(s, lgreen);
+
+        // set_character_8x8(strs1[0], purple, leftbot);
+        // set_character_8x8(strs2[0], purple, rightbot);
+
+        set_temperature(lgreen);
 
         show();
     }
