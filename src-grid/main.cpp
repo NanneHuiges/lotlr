@@ -23,9 +23,9 @@
 // the 437 character definitions.
 #include "font_8x8.h"
 #include "font_4x7.h"
+#include "font_4x6.h"
 
 // todo: include this?
-
 
 // 'brightness' of the led. 0 - 255 (?)
 #define colorSaturation 32
@@ -47,15 +47,14 @@ const int righttop = 0b01;
 const int rightbot = 0b11;
 
 // 8 octants, from lefttop clockwise
-const int oct1 = 0x00;
-const int oct2 = 0x01;
-const int oct3 = 0x02;
-const int oct4 = 0x03;
-const int oct5 = 0x10;
-const int oct6 = 0x12;
-const int oct7 = 0x13;
-const int oct8 = 0x14;
-
+const int oct1 = 0;
+const int oct2 = 1;
+const int oct3 = 2;
+const int oct4 = 3;
+const int oct5 = 10;
+const int oct6 = 12;
+const int oct7 = 13;
+const int oct8 = 14;
 
 // Define some colors for easy use later on
 RgbColor red(colorSaturation, 0, 0);
@@ -125,19 +124,19 @@ void set_character_8x8(unsigned char letter, RgbColor color, int quadrant)
 {
     bool quadrant_x = ((quadrant >> 0) & 0x01);
     bool quadrant_y = ((quadrant >> 1) & 0x01);
-    for (byte x = 0; x < 8; x++)
+    for (byte row = 0; row < 8; row++)
     {
-        byte row_byte = font_8x8[letter][x];
-        for (byte y = 0; y < 8; y++)
+        byte row_byte = font_8x8[letter][row]; // each row is a hex number in the font
+        for (byte col = 0; col < 8; col++)
         {
-            bool led = ((row_byte >> y) & 0x01);
+            bool led = ((row_byte >> col) & 0x01);
             if (led == 1)
             {
-                leds[y + (8 * quadrant_y)][x + (8 * quadrant_x)] = color;
+                leds[col + (8 * quadrant_y)][row + (8 * quadrant_x)] = color;
             }
             else
             {
-                leds[y + (8 * quadrant_y)][x + (8 * quadrant_x)] = black;
+                leds[col + (8 * quadrant_y)][row + (8 * quadrant_x)] = black;
             }
         }
     }
@@ -145,21 +144,37 @@ void set_character_8x8(unsigned char letter, RgbColor color, int quadrant)
 
 void set_character_4x7(unsigned char letter, RgbColor color, int octant)
 {
-    int octant_x = ((octant >> 0) & 0x01);
-    int octant_y = ((octant >> 1) & 0x01);
-    for (byte x = 0; x < 4; x++)
+    int octant_x = octant % 10;
+    int octant_y = octant / 10;
+    char str[1];
+
+    Serial.print("...: ");
+    Serial.println(letter);
+    sprintf(str, "%d", octant_x);
+    Serial.print("x:");
+    Serial.println(str);
+    sprintf(str, "%d", octant_y);
+    Serial.print("y:");
+    Serial.println(str);
+
+    for (byte row = 0; row < 6; row++)
     {
-        byte row_byte = font_4x7[letter][x];
-        for (byte y = 0; y < 7; y++)
+        byte row_byte = font_4x6[letter][row]; // each row is a hex number in the font
+
+        for (byte col = 0; col < 4; col++)
         {
-            bool led = ((row_byte >> y) & 0x01);
+            bool led = ((row_byte >> (col+4)) & 0x01); // hackish
+
+            int y = row + (8 * octant_y);
+            int x = (3-col) + (4 * octant_x); // This is magic. hackish
+
             if (led == 1)
             {
-                leds[y + (8 * octant_y)][x + (4 * octant_x)] = color;
+                leds[y][x] = color;
             }
             else
             {
-                leds[y + (8 * octant_y)][x + (4 * octant_x)] = black;
+                leds[y][x] = black;
             }
         }
     }
@@ -183,11 +198,11 @@ bool should_display()
     {
         HTTPClient http;
         String url = "http://192.168.178.2:8084/json.htm?type=devices&rid=158";
-        http.begin(url);           
-        int httpCode = http.GET(); 
+        http.begin(url);
+        int httpCode = http.GET();
         if (httpCode == 200)
-        {                                      
-            String payload = http.getString(); 
+        {
+            String payload = http.getString();
             DynamicJsonBuffer jsonBuffer;
             JsonObject &root = jsonBuffer.parseObject(payload);
             // Unfortunately, the following doesn't work (issue #118):
@@ -208,7 +223,6 @@ bool should_display()
  */
 void loop()
 {
-
     if (should_display())
     {
         time_t t = now();
@@ -225,16 +239,24 @@ void loop()
         char strm2[2];
         sprintf(strm2, "%d", m % 10);
 
-        set_character_8x8(strh1[0], blue, lefttop);
-        set_character_8x8(strh2[0], blue, righttop);
-        set_character_8x8(strm1[0], purple, leftbot);
-        set_character_8x8(strm2[0], purple, rightbot);
+        // set_character_8x8(strh1[0], blue, lefttop);
+        // set_character_8x8(strh2[0], blue, righttop);
+        // set_character_8x8(strm1[0], purple, leftbot);
+        // set_character_8x8(strm2[0], purple, rightbot);
+
+        set_character_4x7(strh1[0], red, oct1);
+        set_character_4x7(strh2[0], green, oct2);
+        set_character_4x7(strm1[0], blue, oct3);
+        set_character_4x7(strm2[0], white, oct4);
 
         // int s = t % 60;
         // set_sec(s, lgreen);
 
         show();
-    } else {
+    }
+    else
+    {
+        Serial.println("black");
         strip.ClearTo(black);
         strip.Show();
     }
