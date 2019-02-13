@@ -71,6 +71,8 @@ RgbColor black(0);
 // the 'current' leds to write to the matrix
 RgbColor leds[PanelHeight][PanelWidth] = {green};
 
+RgbColor background = black;
+
 void setup_wifi()
 {
     // maak een access point om je wifi netwerk in te kunnen stellen
@@ -136,34 +138,46 @@ void set_character_8x8(unsigned char letter, RgbColor color, int quadrant)
             }
             else
             {
-                leds[col + (8 * quadrant_y)][row + (8 * quadrant_x)] = black;
+                leds[col + (8 * quadrant_y)][row + (8 * quadrant_x)] = background;
             }
         }
     }
 }
 
-void set_character_4x7(unsigned char letter, RgbColor color, int octant)
+void set_character_4x6(unsigned char letter, RgbColor color, int octant)
 {
     int octant_x = octant % 10;
     int octant_y = octant / 10;
 
-    for (byte row = 0; row < 6; row++)
+    for (byte row = 1; row < 7; row++)
     {
-        byte row_byte = font_4x6[letter][row]; // each row is a hex number in the font
+        byte row_byte = font_4x6[letter][row - 1]; // each row is a hex number in the font
 
         for (byte col = 0; col < 4; col++)
         {
-            bool led = ((row_byte >> (col+4)) & 0x01); // hackish
+            bool led = ((row_byte >> (col + 4)) & 0x01); // hackish
 
             int y = row + (8 * octant_y);
-            int x = (3-col) + (4 * octant_x); // This is magic. hackish
+            int x = (3 - col) + (4 * octant_x); // This is magic. hackish
 
-            if (led == 1){
+            if (led == 1)
+            {
                 leds[y][x] = color;
-            } else {
-                leds[y][x] = black;
+            }
+            else
+            {
+                leds[y][x] = background;
             }
         }
+    }
+    //now fill the top and bottom empty rows
+    for (byte col = 0; col < 4; col++)
+    {
+        int y7 = 0 + (8 * octant_y);
+        int y8 = 7 + (8 * octant_y);
+        int x = (3 - col) + (4 * octant_x); // This is magic. hackish
+        leds[y7][x] = background;
+        leds[y8][x] = background;
     }
 }
 
@@ -196,20 +210,22 @@ void set_temperature(RgbColor color)
             // sensor = root["sensor"]; // <-  error "ambiguous overload for 'operator='"
             // As a workaround, you need to replace by
             String data = root["result"][0]["Data"].as<String>();
-            Serial.println(data);
-            data = data.substring(0,data.length()-4);
-            Serial.println(data);
+            // Serial.println(data);
+            data = data.substring(0, data.length() - 4);
+            // Serial.println(data);
             // right. too drunk to figure out wstring padding
             // so this'll work:
             // print 3-length spaces, then length chars, then the celcius sign)
-            for(int i=0; i<3-data.length();i++){
-                set_character_4x7(' ', black, oct5+i);
+            for (int i = 0; i < 3 - data.length(); i++)
+            {
+                set_character_4x6(' ', background, oct5 + i);
             }
-            for(int i=3-data.length(); i<3; i++){
-                set_character_4x7(data[i-(3-data.length())], color, oct5+i);
+            for (int i = 3 - data.length(); i < 3; i++)
+            {
+                set_character_4x6(data[i - (3 - data.length())], color, oct5 + i);
             }
-            set_character_4x7(char(248), color, oct8);
-            return;           
+            set_character_4x6(char(248), color, oct8);
+            return;
         }
         Serial.println("no status 200 from domoticz");
         return;
@@ -244,6 +260,95 @@ bool should_display()
     return false;
 }
 
+RgbColor get_background_color()
+{
+    int red = -1;
+    int green = -1;
+    int blue = -1;
+
+    if (WiFi.status() == WL_CONNECTED)
+    {
+        HTTPClient http;
+        String url;
+        int httpCode;
+        String payload;
+        DynamicJsonBuffer jsonBuffer;
+        String data;
+
+        url = "http://192.168.178.2:8084/json.htm?type=devices&rid=160";
+        http.begin(url);
+        httpCode = http.GET();
+        if (httpCode == 200)
+        {
+            payload = http.getString();
+            JsonObject &redroot = jsonBuffer.parseObject(payload);
+            red = 0;
+            data = redroot["result"][0]["Data"].as<String>();
+            if (data != "Off")
+            {
+                red = redroot["result"][0]["Level"].as<int>();
+            }
+            // Serial.println("retrieved red");
+        }
+
+        url = "http://192.168.178.2:8084/json.htm?type=devices&rid=161";
+        http.begin(url);
+        httpCode = http.GET();
+        if (httpCode == 200)
+        {
+            payload = http.getString();
+            JsonObject &greenroot = jsonBuffer.parseObject(payload);
+            green = 0;
+            data = greenroot["result"][0]["Data"].as<String>();
+            if (data != "Off")
+            {
+                green = greenroot["result"][0]["Level"].as<int>();
+            }
+            // Serial.println("retrieved green");
+        }
+
+        url = "http://192.168.178.2:8084/json.htm?type=devices&rid=162";
+        http.begin(url);
+        httpCode = http.GET();
+        if (httpCode == 200)
+        {
+            String payload = http.getString();
+            JsonObject &blueroot = jsonBuffer.parseObject(payload);
+            blue = 0;
+            data = blueroot["result"][0]["Data"].as<String>();
+            if (data != "Off")
+            {
+                blue = blueroot["result"][0]["Level"].as<int>();
+            }
+            // Serial.println("retrieved blue");
+        }
+    }
+    if (red < 0 || green < 0 || blue < 0)
+    {
+        Serial.println("fallback background");
+        return black;
+    }
+
+    // char r[2];
+    // sprintf(r, "%d", red);
+    // char g[2];
+    // sprintf(g, "%d", green);
+    // char b[2];
+    // sprintf(b, "%d", blue);
+
+    // Serial.print("RGB: ");
+    // Serial.print(red);
+    // Serial.print(", ");
+    // Serial.print(green);
+    // Serial.print(", ");
+    // Serial.print(blue);
+    // Serial.println("");
+
+    return RgbColor((int)floor(colorSaturation * red / 100),
+                    (int)floor(colorSaturation * green / 100),
+                    (int)floor(colorSaturation * blue / 100));
+}
+
 /**
  * Arduino convention: the loop gets called in a loop.
  */
@@ -252,6 +357,8 @@ void loop()
     if (should_display())
     {
         time_t t = now();
+
+        background = get_background_color();
 
         int h = (t / 3600) % 24;
         char strh1[2];
@@ -270,10 +377,10 @@ void loop()
         // set_character_8x8(strm1[0], purple, leftbot);
         // set_character_8x8(strm2[0], purple, rightbot);
 
-        set_character_4x7(strh1[0], purple, oct1);
-        set_character_4x7(strh2[0], purple, oct2);
-        set_character_4x7(strm1[0], purple, oct3);
-        set_character_4x7(strm2[0], purple, oct4);
+        set_character_4x6(strh1[0], purple, oct1);
+        set_character_4x6(strh2[0], purple, oct2);
+        set_character_4x6(strm1[0], purple, oct3);
+        set_character_4x6(strm2[0], purple, oct4);
 
         int s = t % 60;
         char strs1[2];
